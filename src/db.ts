@@ -1,4 +1,12 @@
 import mongoose from "mongoose";
+import dotenv from  "dotenv";
+
+dotenv.config();
+
+
+
+mongoose.connect(process.env.MONGO_CONNCTION_STRING!);
+
 
 const contentTypes=['image','video','article','audio'];
 
@@ -7,6 +15,9 @@ const contentTypes=['image','video','article','audio'];
 const userSchema= new mongoose.Schema({
     username: {type:String ,required:true},
     password: {type:String ,required:true},
+    shareEnable:{type:Boolean,default:false},
+    shareLink:{type:String,default:null},
+
 
 });
 
@@ -15,7 +26,7 @@ const contentSchema= new mongoose.Schema({
     link:{type:String,required:true},
     type:{type:String ,enum:contentTypes,required:true},
     title:{type:String,required:true},
-    tags:{type:mongoose.Schema.Types.ObjectId,ref:"Tag"},
+    tags:[{type:mongoose.Schema.Types.ObjectId,ref:"Tag"}],
     userId:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},
 
 });

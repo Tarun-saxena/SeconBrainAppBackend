@@ -6,6 +6,7 @@ import cors from "cors";
 import validator from "validator";
 import dotenv from "dotenv";
 import { authMiddleware } from "./middleware.js";
+import crypto from "crypto";
 
 //mongodb import
 import { User } from "./db.js";
@@ -143,33 +144,99 @@ app.get('/api/v1/content',authMiddleware,async (req,res)=>{
         return res.status(500).json({message:"error in content",e})
 
     };
-})
+});
 
-app.delete('/api/v1/content',authMiddleware,async (req,res)=>{
+app.delete('/api/v1/content/:id',authMiddleware,async (req,res)=>{
 
-    const contentId=req.body;
+    const {id}=req.params;
 
-    if(!contentId){
-        res.status(400).json({message:"no content to delete"})
+    if(!id||typeof id !== "string"){
+        return res.status(400).json({message:"content id misiing"});
+
+    }
+
+
+    if(!mongoose.Types.ObjectId.isValid(id)){
+        return res.status(400).json({ message: "Invalid content id" });
+
     }
 
     try{
 
-        
+        const deletedContent= await Content.findOneAndDelete({_id:id});
 
-
-
-
+        return res.status(200).json({message:"content deleted"})
 
     }catch(e){
         return res.status(403).json({message:"Trying to delete a doc you don’t own"})
 
     }
-       
+
+});
+
+app.post('/api/v1/brain/share',authMiddleware,async(req,res)=>{
+
+    const {share}=req.body;
+    if(typeof(share) !=="boolean"){
+        return res.status(400).json({message:"share must be true or false"});
+    }
+
+    try{
+        if(share){
+
+            const shareLink=crypto.randomBytes(16).toString("hex")
+            await User.findByIdAndUpdate(req.userId,{
+                shareEnable:true,
+                shareLink:shareLink
+            })
+
+            
+           return res.status(200).json({message:"sharing enable",shareLink:shareLink});
+        }else{
+            await User.findByIdAndUpdate(req.userId,{
+                shareEnable:false,
+                shareLink:null
+            })
+
+            
+           return res.status(200).json({message:"sharing disabled"});
+        }
 
 
+    }catch(e){
+        return res.status(404).json({message:"server error"});
+    }
+
+});
+
+app.get('/api/v1/brain/:shareLink',async (req,res)=>{
+    const {shareLink}=req.params;
+
+    if(!shareLink||typeof shareLink !== "string"){
+        return res.status(400).json({message:"share id misiing"});
+
+    }
+
+    try{
+        const user=await User.findOne({shareLink:shareLink,shareEnable:true});
+
+
+        if(!user){
+            return res.status(400).json({message:"user not found"});
+        }
+
+        const content=await Content.find({userId:user._id});
+
+        return res.status(200).json({username:user.username,content:content});
+
+    }catch(e){
+
+        return res.status(404).json({message:" the share link is invalid or sharing is disabled"});
+
+    }
 
 })
+
 
 
 app.listen(3000, () => {
